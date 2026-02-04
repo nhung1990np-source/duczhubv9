@@ -1,5 +1,4 @@
 
-" or v450.Name == "Cookie Crafter"))) and v450.Humanoid.Health > 0 then
                                 repeat
                                     wait(_G.Fast_Delay)
                                     AutoHaki()
