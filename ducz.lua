@@ -1,4 +1,40 @@
+-- ducz.lua (Đã chỉnh sửa để chạy trên Roblox Executor)
 
+-- Chờ game load xong
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- Kiểm tra executor có hỗ trợ HttpGet + loadstring không
+local HttpGet = game.HttpGet or (syn and syn.request) or (Krnl and Krnl.HttpGet)
+local loadstring = loadstring
+
+if not HttpGet or not loadstring then
+    warn("Executor không hỗ trợ HttpGet hoặc loadstring!")
+    return
+end
+
+-- LOG để debug khi chạy
+local function log(msg)
+    print("[DUCZ] " .. tostring(msg))
+end
+
+log("Đang khởi động script...")
+
+-- Hàm load từ URL (an toàn hơn)
+local function fetchScript(url)
+    local ok, res = pcall(function()
+        return game:HttpGet(url, true)
+    end)
+    if not ok or not res or #res < 10 then
+        warn("Không tải được script từ URL:", url)
+        return nil
+    end
+    return res
+end
+
+
+" or v450.Name == "Cookie Crafter"))) and v450.Humanoid.Health > 0 then
                                 repeat
                                     wait(_G.Fast_Delay)
                                     AutoHaki()
@@ -11130,3 +11166,15 @@ spawn(function()
         end
     end
 end)
+
+pcall(function()
+    log("Script đang chạy trên executor!")
+    -- Example test: print player
+    if game.Players.LocalPlayer then
+        log("Người chơi: " .. game.Players.LocalPlayer.Name)
+    end
+
+    -- TODO: Dán code chính ở đây
+end)
+
+log("Script hoàn tất!")
