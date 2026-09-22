@@ -2,7 +2,7 @@
 -- KAITUN SCRIPT - TÍCH HỢP AUTO FULL MELEE + EQUIP WEAPON
 -- Version 2.2 - SẴN SÀNG CHẠY
 -- FAST ATTACK + EQUIP WEAPON LẤY TỪ TEST.TXT (GIỮ NGUYÊN)
--- UI BLOXKID + CHỨC NĂNG DYNAMICISLAND V2
+-- UI TỪ DYNAMICISLAND (CÓ DISCORD)
 -- ĐẦY ĐỦ CHỨC NĂNG: AUTO FULL MELEE, AUTO RAID ICE, LOW GRAPHICS, SEA2/3, SABER, SOUL GUITAR, V.V.
 -- ============================================================
 
@@ -819,50 +819,69 @@ function hoangtuveu()
     repeat task.wait() until game.CoreGui
 
     -- ============================================================
-    -- UI TỪ BLOXKID.LUA.TXT (CHỈ GIAO DIỆN)
-    -- Toàn bộ chức năng bên dưới vẫn thuộc DynamicIsland_v2_final.lua.
+    -- LONELY HUB UI (visual shell from file 1; all logic is file 2)
     -- ============================================================
-    local uiPlayers = game:GetService("Players")
-    local uiCoreGui = game:GetService("CoreGui")
-    local uiTweenService = game:GetService("TweenService")
-    local uiLighting = game:GetService("Lighting")
-    local uiPlayer = uiPlayers.LocalPlayer
+    local CoreGui = game:GetService("CoreGui")
+    local TweenService = game:GetService("TweenService")
+    local Lighting = game:GetService("Lighting")
 
     for _, guiName in ipairs({"KaitunUI", "Status", "Lonely Hub Btn", "CoinCard"}) do
-        local oldGui = uiCoreGui:FindFirstChild(guiName)
-        if oldGui then
-            oldGui:Destroy()
-        end
+        local oldGui = CoreGui:FindFirstChild(guiName)
+        if oldGui then oldGui:Destroy() end
     end
-    local oldBlur = uiLighting:FindFirstChild("Lonely Hub Blur")
-    if oldBlur then
-        oldBlur:Destroy()
-    end
+    local oldBlur = Lighting:FindFirstChild("Lonely Hub Blur")
+    if oldBlur then oldBlur:Destroy() end
 
-    local uiBlur = Instance.new("BlurEffect")
-    uiBlur.Name = "Lonely Hub Blur"
-    uiBlur.Size = 24
-    uiBlur.Parent = uiLighting
+    local blur = Instance.new("BlurEffect")
+    blur.Name = "Lonely Hub Blur"
+    blur.Size = 0
+    blur.Parent = Lighting
 
-    local function addCorner(parent, radius)
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, radius or 5)
-        corner.Parent = parent
-        return corner
-    end
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "KaitunUI"
+    gui.Parent = CoreGui
+    gui.Enabled = true
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 20
 
-    local function addStroke(parent, color, thickness)
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = color
-        stroke.Thickness = thickness or 1
-        stroke.Parent = parent
-        return stroke
-    end
+    local holder = Instance.new("Frame")
+    holder.Name = "DropShadowHolder"
+    holder.Parent = gui
+    holder.AnchorPoint = Vector2.new(0.5, 0.5)
+    holder.Position = UDim2.new(0.5, 0, 0.5, 0)
+    holder.Size = UDim2.new(0, 553, 0, 353)
+    holder.BackgroundTransparency = 1
+    holder.Active = true
+    holder.Draggable = true
 
-    local function makeLabel(parent, name, text, position, size, alignment, textSize, color)
+    local shadow = Instance.new("ImageLabel")
+    shadow.Parent = holder
+    shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    shadow.Size = UDim2.new(1, 47, 1, 47)
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://6015897843"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.25
+    shadow.ScaleType = Enum.ScaleType.Slice
+    shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+
+    local main = Instance.new("Frame")
+    main.Name = "Main"
+    main.Parent = holder
+    main.Size = UDim2.fromScale(1, 1)
+    main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    main.BackgroundTransparency = 0.35
+    main.BorderSizePixel = 0
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 5)
+    local mainStroke = Instance.new("UIStroke", main)
+    mainStroke.Color = Color3.fromRGB(255, 80, 80)
+    mainStroke.Thickness = 2.5
+
+    local function makeLabel(name, text, position, size, textSize, color, alignment)
         local label = Instance.new("TextLabel")
         label.Name = name
-        label.Parent = parent
+        label.Parent = main
         label.BackgroundTransparency = 1
         label.Position = position
         label.Size = size
@@ -872,244 +891,86 @@ function hoangtuveu()
         label.TextSize = textSize or 16
         label.TextWrapped = true
         label.TextXAlignment = alignment or Enum.TextXAlignment.Left
-        label.TextYAlignment = Enum.TextYAlignment.Center
         return label
     end
 
-    local accent = Color3.fromRGB(255, 80, 80)
-    local white = Color3.fromRGB(255, 255, 255)
+    local title = makeLabel("Top", "LONELY HUB • KAITUN", UDim2.new(0.05, 0, 0.035, 0), UDim2.new(0.9, 0, 0, 24), 17, Color3.fromRGB(255, 80, 80), Enum.TextXAlignment.Center)
+    local divider = Instance.new("Frame", main)
+    divider.Position = UDim2.new(0.08, 0, 0.14, 0)
+    divider.Size = UDim2.new(0.84, 0, 0, 2)
+    divider.BorderSizePixel = 0
+    divider.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 
-    -- Bảng thông tin tài khoản lớn, đúng bố cục file 1.
-    local CoinCard = Instance.new("ScreenGui")
-    CoinCard.Name = "CoinCard"
-    CoinCard.Parent = uiCoreGui
-    CoinCard.ResetOnSpawn = false
-    CoinCard.DisplayOrder = 20
+    local taskLabel = makeLabel("Task", "Status: Initializing...", UDim2.new(0.07, 0, 0.20, 0), UDim2.new(0.86, 0, 0, 30), 16, Color3.fromRGB(255, 80, 80))
+    local subTaskLabel = makeLabel("SubTask", "Sub Task: Waiting...", UDim2.new(0.07, 0, 0.30, 0), UDim2.new(0.86, 0, 0, 46), 15)
+    local debugLabel = makeLabel("DebugLine", "Task Engine: Loading", UDim2.new(0.07, 0, 0.45, 0), UDim2.new(0.86, 0, 0, 26), 14)
+    local currenciesLabel = makeLabel("Currencies", "Currencies: Loading", UDim2.new(0.07, 0, 0.54, 0), UDim2.new(0.86, 0, 0, 26), 14)
+    local meleesLabel = makeLabel("Melees", "Melees: Loading", UDim2.new(0.07, 0, 0.63, 0), UDim2.new(0.86, 0, 0, 44), 14)
+    local liveTimeLabel = makeLabel("LiveTime", "Elapsed Time: 00:00:00", UDim2.new(0.07, 0, 0.80, 0), UDim2.new(0.86, 0, 0, 26), 14)
+    local discordLabel = makeLabel("DiscordLabel", "discord.gg/2anc7nHw6b", UDim2.new(0.07, 0, 0.90, 0), UDim2.new(0.86, 0, 0, 22), 13, Color3.fromRGB(255, 80, 80), Enum.TextXAlignment.Center)
 
-    local DropShadowHolder = Instance.new("Frame")
-    DropShadowHolder.Name = "DropShadowHolder"
-    DropShadowHolder.Parent = CoinCard
-    DropShadowHolder.AnchorPoint = Vector2.new(0.5, 0.5)
-    DropShadowHolder.BackgroundTransparency = 1
-    DropShadowHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
-    DropShadowHolder.Size = UDim2.new(0, 600, 0, 400)
-
-    local DropShadow = Instance.new("ImageLabel")
-    DropShadow.Name = "DropShadow"
-    DropShadow.Parent = DropShadowHolder
-    DropShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    DropShadow.BackgroundTransparency = 1
-    DropShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    DropShadow.Size = UDim2.new(1, 47, 1, 47)
-    DropShadow.ZIndex = 0
-    DropShadow.Image = "rbxassetid://6015897843"
-    DropShadow.ImageTransparency = 0.25
-    DropShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-
-    local Main = Instance.new("Frame")
-    Main.Name = "Main"
-    Main.Parent = DropShadowHolder
-    Main.AnchorPoint = Vector2.new(0.5, 0.5)
-    Main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    Main.BackgroundTransparency = 0.5
-    Main.BorderSizePixel = 0
-    Main.Position = UDim2.new(0.5, 0, 0.5, 0)
-    Main.Size = UDim2.new(1, -47, 1, -47)
-    addCorner(Main, 5)
-    addStroke(Main, accent, 2.5)
-
-    local DividerTop = Instance.new("Frame")
-    DividerTop.Name = "DividerTop"
-    DividerTop.Parent = Main
-    DividerTop.BackgroundColor3 = Color3.fromRGB(27, 42, 53)
-    DividerTop.BorderSizePixel = 0
-    DividerTop.Position = UDim2.new(0.15, 0, 0.15, 0)
-    DividerTop.Size = UDim2.new(0.7, 0, 0, 2)
-
-    local DividerBottom = Instance.new("Frame")
-    DividerBottom.Name = "DividerBottom"
-    DividerBottom.Parent = Main
-    DividerBottom.BackgroundColor3 = Color3.fromRGB(27, 42, 53)
-    DividerBottom.BorderSizePixel = 0
-    DividerBottom.Position = UDim2.new(0.1, 0, 0.75, 0)
-    DividerBottom.Size = UDim2.new(0.8, 0, 0, 2)
-
-    local TopTitle = makeLabel(Main, "Top", "BloxKid Kaitun", UDim2.new(0.2, 0, 0.03, 0), UDim2.new(0.6, 0, 0, 28), Enum.TextXAlignment.Center, 16, white)
-    local titleGradient = Instance.new("UIGradient")
-    titleGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, accent),
-        ColorSequenceKeypoint.new(1, accent)
-    })
-    titleGradient.Parent = TopTitle
-
-    makeLabel(Main, "UnderStats", "Account Stats", UDim2.new(0.06, 0, 0.20, 0), UDim2.new(0.42, 0, 0, 22), Enum.TextXAlignment.Center, 16, white)
-    makeLabel(Main, "UnderItems", "Kaitun Progress", UDim2.new(0.52, 0, 0.20, 0), UDim2.new(0.42, 0, 0, 22), Enum.TextXAlignment.Center, 16, white)
-
-    local LevelLabel = makeLabel(Main, "LevelLabel", "Level: N/A", UDim2.new(0.07, 0, 0.33, 0), UDim2.new(0.40, 0, 0, 22))
-    local RaceLabel = makeLabel(Main, "RaceLabel", "Race: N/A", UDim2.new(0.07, 0, 0.42, 0), UDim2.new(0.40, 0, 0, 22))
-    local BeliLabel = makeLabel(Main, "BeliLabel", "Beli: N/A", UDim2.new(0.07, 0, 0.51, 0), UDim2.new(0.40, 0, 0, 22))
-    local FragLabel = makeLabel(Main, "FragLabel", "Fragments: N/A", UDim2.new(0.07, 0, 0.60, 0), UDim2.new(0.40, 0, 0, 22))
-
-    local MeleeLabel = makeLabel(Main, "MeleeLabel", "Melee: N/A", UDim2.new(0.53, 0, 0.33, 0), UDim2.new(0.40, 0, 0, 54), Enum.TextXAlignment.Left, 14)
-    MeleeLabel.TextYAlignment = Enum.TextYAlignment.Top
-    local DebugLabel = makeLabel(Main, "DebugLabel", "Current: Loading", UDim2.new(0.53, 0, 0.49, 0), UDim2.new(0.40, 0, 0, 42), Enum.TextXAlignment.Left, 14)
-    DebugLabel.TextYAlignment = Enum.TextYAlignment.Top
-    local LiveTimeLabel = makeLabel(Main, "LiveTimeLabel", "Elapsed Time: 00:00:00", UDim2.new(0.53, 0, 0.63, 0), UDim2.new(0.40, 0, 0, 34), Enum.TextXAlignment.Left, 13)
-
-    local configLine = makeLabel(Main, "ConfigLine", "Auto Melee • Items • Sea 2/3", UDim2.new(0.08, 0, 0.80, 0), UDim2.new(0.84, 0, 0, 22), Enum.TextXAlignment.Center, 14, white)
-    configLine.TextTransparency = 0.05
-    makeLabel(Main, "FunctionSource", "Functions: DynamicIsland v2 Final", UDim2.new(0.08, 0, 0.89, 0), UDim2.new(0.84, 0, 0, 22), Enum.TextXAlignment.Center, 13, accent)
-
-    -- Thanh trạng thái phía trên từ file 1.
-    local StatusUI = Instance.new("ScreenGui")
-    StatusUI.Name = "Status"
-    StatusUI.Parent = uiCoreGui
-    StatusUI.ResetOnSpawn = false
-    StatusUI.DisplayOrder = 10
-
-    local StatusHolder = Instance.new("Frame")
-    StatusHolder.Name = "DropShadow2Holder2"
-    StatusHolder.Parent = StatusUI
-    StatusHolder.AnchorPoint = Vector2.new(0.5, 0.5)
-    StatusHolder.BackgroundTransparency = 1
-    StatusHolder.Position = UDim2.new(0.5, 0, 0.05, 0)
-    StatusHolder.Size = UDim2.new(0, 500, 0, 92)
-
-    local StatusShadow = Instance.new("ImageLabel")
-    StatusShadow.Name = "DropShadow2"
-    StatusShadow.Parent = StatusHolder
-    StatusShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    StatusShadow.BackgroundTransparency = 1
-    StatusShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    StatusShadow.Size = UDim2.new(1, 47, 1, 47)
-    StatusShadow.Image = "rbxassetid://6015897843"
-    StatusShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    StatusShadow.ImageTransparency = 0.5
-
-    local StatusMain = Instance.new("Frame")
-    StatusMain.Name = "Main"
-    StatusMain.Parent = StatusShadow
-    StatusMain.AnchorPoint = Vector2.new(0.5, 0.5)
-    StatusMain.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    StatusMain.BackgroundTransparency = 0.5
-    StatusMain.BorderSizePixel = 0
-    StatusMain.Position = UDim2.new(0.5, 0, 0.5, 0)
-    StatusMain.Size = UDim2.new(1, -50, 1, -55)
-    addCorner(StatusMain, 5)
-    addStroke(StatusMain, accent, 2.5)
-
-    local MainTaskLabel = makeLabel(StatusMain, "MainTask", "MainTask: Initializing", UDim2.new(0.03, 0, 0.06, 0), UDim2.new(0.94, 0, 0, 24), Enum.TextXAlignment.Center, 16, accent)
-    local SubTaskLabel = makeLabel(StatusMain, "SubTask", "SubTask: Idle", UDim2.new(0.03, 0, 0.36, 0), UDim2.new(0.94, 0, 0, 24), Enum.TextXAlignment.Center, 15, accent)
-    local StatusDetailLabel = makeLabel(StatusMain, "StatusDetail", "Status Farm: Starting", UDim2.new(0.03, 0, 0.66, 0), UDim2.new(0.94, 0, 0, 20), Enum.TextXAlignment.Center, 13, white)
-
-    local DiscordLabel = makeLabel(StatusUI, "DiscordLabel", "BloxKid UI", UDim2.new(0.5, -105, -0.01, 0), UDim2.new(0, 210, 0, 30), Enum.TextXAlignment.Center, 14, accent)
-    addStroke(DiscordLabel, accent, 1)
-
-    -- Nút tròn ẩn/hiện giống file 1.
-    local ToggleGui = Instance.new("ScreenGui")
-    ToggleGui.Name = "Lonely Hub Btn"
-    ToggleGui.Parent = uiCoreGui
-    ToggleGui.ResetOnSpawn = false
-    ToggleGui.DisplayOrder = 30
-
-    local ToggleFrame = Instance.new("Frame")
-    ToggleFrame.Name = "ToggleFrame"
-    ToggleFrame.Parent = ToggleGui
-    ToggleFrame.AnchorPoint = Vector2.new(0.1, 0.1)
-    ToggleFrame.BackgroundColor3 = white
-    ToggleFrame.Position = UDim2.new(0, 20, 0.1, -6)
-    ToggleFrame.Size = UDim2.new(0, 50, 0, 50)
-    ToggleFrame.Active = true
-    ToggleFrame.Draggable = true
-    addCorner(ToggleFrame, 25)
-
-    local ToggleIcon = Instance.new("ImageLabel")
-    ToggleIcon.Parent = ToggleFrame
-    ToggleIcon.AnchorPoint = Vector2.new(0.5, 0.5)
-    ToggleIcon.BackgroundTransparency = 1
-    ToggleIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ToggleIcon.Size = UDim2.new(0, 40, 0, 40)
-    ToggleIcon.Image = "rbxassetid://112485471724320"
-
-    local ToggleButton = Instance.new("TextButton")
-    ToggleButton.Parent = ToggleFrame
-    ToggleButton.BackgroundTransparency = 1
-    ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-    ToggleButton.Text = ""
-
-    local uiVisible = true
-    local normalIconSize = UDim2.new(0, 40, 0, 40)
-    local pressedIconSize = UDim2.new(0, 30, 0, 30)
-    local toggleTweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    ToggleButton.MouseButton1Down:Connect(function()
-        uiVisible = not uiVisible
-        uiTweenService:Create(ToggleIcon, toggleTweenInfo, {Size = uiVisible and normalIconSize or pressedIconSize}):Play()
-        uiTweenService:Create(ToggleFrame, toggleTweenInfo, {BackgroundTransparency = uiVisible and 0 or 0.25}):Play()
-        CoinCard.Enabled = uiVisible
-        StatusUI.Enabled = uiVisible
-        uiBlur.Size = uiVisible and 24 or 0
-    end)
-
-    W.Instances['Task1'] = MainTaskLabel
-    W.Instances['Task2'] = SubTaskLabel
-    W.Instances['MainTextLabel'] = MainTaskLabel
-    W.Instances['Currencies'] = StatusDetailLabel
-    W.Instances['Melees'] = MeleeLabel
-    W.Instances['LiveTime'] = LiveTimeLabel
-    W.Instances['DebugLine'] = DebugLabel
+    W.Instances.Task1 = taskLabel
+    W.Instances.Task2 = subTaskLabel
+    W.Instances.MainTextLabel = taskLabel
+    W.Instances.DebugLine = debugLabel
+    W.Instances.Currencies = currenciesLabel
+    W.Instances.Melees = meleesLabel
+    W.Instances.LiveTime = liveTimeLabel
 
     function SetText(key, text)
-        task.spawn(function()
-            local label = W.Instances[key]
-            if not label then
-                return
-            end
-            text = tostring(text or "")
-            if label.Text == text then
-                return
-            end
-            local fadeOut = uiTweenService:Create(label, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                TextTransparency = 1,
-                TextStrokeTransparency = 1
-            })
-            fadeOut:Play()
-            fadeOut.Completed:Wait()
-            label.Text = text
-            uiTweenService:Create(label, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                TextTransparency = 0,
-                TextStrokeTransparency = 1
-            }):Play()
-        end)
+        local label = W.Instances[key]
+        if not label then return end
+        local value = tostring(text or "")
+        if label.Text == value then return end
+        label.Text = value
     end
 
-    task.spawn(function()
-        while task.wait(1) do
-            pcall(function()
-                local data = uiPlayer:FindFirstChild("Data")
-                if not data then
-                    return
-                end
-                local level = data:FindFirstChild("Level")
-                local beli = data:FindFirstChild("Beli")
-                local fragments = data:FindFirstChild("Fragments")
-                local race = data:FindFirstChild("Race")
-                LevelLabel.Text = "Level: " .. tostring(level and level.Value or "N/A")
-                BeliLabel.Text = "Beli: " .. tostring(beli and beli.Value or "N/A")
-                FragLabel.Text = "Fragments: " .. tostring(fragments and fragments.Value or "N/A")
-                RaceLabel.Text = "Race: " .. tostring(race and race.Value or "N/A")
-            end)
-        end
+    local toggleGui = Instance.new("ScreenGui")
+    toggleGui.Name = "Lonely Hub Btn"
+    toggleGui.Parent = CoreGui
+    toggleGui.ResetOnSpawn = false
+    toggleGui.DisplayOrder = 21
+
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Parent = toggleGui
+    toggleFrame.Position = UDim2.new(0, 20, 0.1, -6)
+    toggleFrame.Size = UDim2.new(0, 50, 0, 50)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    toggleFrame.Active = true
+    toggleFrame.Draggable = true
+    Instance.new("UICorner", toggleFrame).CornerRadius = UDim.new(1, 0)
+
+    local icon = Instance.new("ImageLabel")
+    icon.Parent = toggleFrame
+    icon.AnchorPoint = Vector2.new(0.5, 0.5)
+    icon.Position = UDim2.fromScale(0.5, 0.5)
+    icon.Size = UDim2.new(0, 40, 0, 40)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxassetid://112485471724320"
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Parent = toggleFrame
+    toggleButton.Size = UDim2.fromScale(1, 1)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.Text = ""
+
+    local interfaceVisible = true
+    local function setInterfaceVisible(state)
+        interfaceVisible = state ~= false
+        gui.Enabled = interfaceVisible
+        blur.Size = interfaceVisible and 24 or 0
+    end
+    toggleButton.MouseButton1Click:Connect(function()
+        TweenService:Create(icon, TweenInfo.new(0.18), {Size = interfaceVisible and UDim2.new(0, 30, 0, 30) or UDim2.new(0, 40, 0, 40)}):Play()
+        setInterfaceVisible(not interfaceVisible)
     end)
 
-    getgenv().alert = function() end
-    W.SetText = SetText
-    W.ToggleUI = function()
-        uiVisible = not uiVisible
-        CoinCard.Enabled = uiVisible
-        StatusUI.Enabled = uiVisible
-        uiBlur.Size = uiVisible and 24 or 0
+    getgenv().alert = function(titleText, message)
+        SetText("Task2", tostring(titleText or "") .. ": " .. tostring(message or ""))
     end
-    W.ToggleInterface = W.ToggleUI
+    W.SetText = SetText
+    W.ToggleUI = setInterfaceVisible
+    W.ToggleInterface = setInterfaceVisible
     W.RegisterForBlur = function() end
 
     -- ============================================================
