@@ -4955,84 +4955,57 @@ local function _npcLivePos(npcName)
 	end
 	return nil
 end
-local function _npcPosForQuest(qn, lvl)
-	local best = nil
+local function B(C)
+	local c = {}
 	pcall(function()
-		for inst, r in pairs((Z.Data and Z.Data.NPCList) or {}) do
-			local match = (r.InternalQuestName == qn)
-			if not match and type(r.Levels) == "table" then
-				for _, n in pairs(r.Levels) do
-					if n == lvl then
-						match = true
-						break
+		local J = Z.Data and Z.Data.QuestData
+		local F, q = J and (next(J.Task)), 0
+		for D, r in pairs(Z.Data.NPCList or {}) do
+			local qn = r.InternalQuestName
+			local qt = qn and H[qn]
+			if qt and not table.find(V, qn) and type(r.Levels) == "table" then
+				for id, n in pairs(r.Levels) do
+					local d = qt[id]
+					if d and type(d.Task) == "table" then
+						local u, W = next(d.Task)
+						if W and W > 1 and n <= C and n >= q then
+							local pos = r.Position
+							if typeof(pos) == "CFrame" then pos = pos.Position end
+							pos = _npcLivePos(r.NPCName) or (typeof(D) == "Instance" and D:IsA("BasePart") and D.Position) or pos
+							c = { Level = n, Name = r.NPCName, QuestName = qn, Pos = pos, Id = id, Mob = u }
+							if F == u and id > 1 then
+								local prev = qt[id - 1]
+								if prev and prev.Task then
+									for mn, cnt in pairs(prev.Task) do
+										if mn ~= F and cnt > 1 then c.Mob = mn; c.Id = id - 1; break end
+									end
+								end
+							end
+							q = n
+						end
 					end
-				end
-			end
-			if match then
-				local p = _npcLivePos(r.NPCName)
-					or (typeof(inst) == "Instance" and inst:IsA("BasePart") and inst.Position)
-				local rp = r.Position
-				if typeof(rp) == "CFrame" then
-					rp = rp.Position
-				end
-				best = p or rp or best
-				if best then
-					return
 				end
 			end
 		end
 	end)
-	return best
-end
-local function B(C)
-	local c = {}
-	local best, curMob = -1, nil
-	pcall(function()
-		local J = Z.Data and Z.Data.QuestData
-		curMob = J and J.Task and (next(J.Task)) or nil
-	end)
-	for qn, list in pairs(H) do
-		if not table.find(V, qn) then
-			for id, d in pairs(list) do
-				if
-					type(d) == "table"
-					and d.LevelReq
-					and d.LevelReq <= C
-					and d.LevelReq > best
-					and type(d.Task) == "table"
-				then
-					local u, W = next(d.Task)
-					if W and W > 1 then
-						best = d.LevelReq
-						c = { Level = d.LevelReq, QuestName = qn, Id = id, Mob = u, Name = d.Name }
+	-- Du phong: GuideModule chua cap nhat -> doc thang bang Quests
+	if not c.QuestName then
+		local best = -1
+		for qn, list in pairs(H) do
+			if not table.find(V, qn) then
+				for id, d in pairs(list) do
+					if type(d) == "table" and d.LevelReq and d.LevelReq <= C and d.LevelReq > best and type(d.Task) == "table" then
+						local u, W = next(d.Task)
+						if W and W > 1 then
+							best = d.LevelReq
+							c = { Level = d.LevelReq, QuestName = qn, Id = id, Mob = u }
+						end
 					end
 				end
 			end
 		end
 	end
 	if c.QuestName then
-		if curMob and curMob == c.Mob and c.Id and c.Id > 1 then
-			local prev = H[c.QuestName] and H[c.QuestName][c.Id - 1]
-			if prev and type(prev.Task) == "table" then
-				for mn, cnt in pairs(prev.Task) do
-					if mn ~= curMob and cnt > 1 then
-						c.Mob = mn
-						c.Id = c.Id - 1
-						break
-					end
-				end
-			end
-		end
-		c.Pos = _npcPosForQuest(c.QuestName, c.Level)
-		if not c.Pos then
-			if not next(getgenv().questpoint or {}) then
-				pcall(CFrameQuest)
-			end
-			local qp = getgenv().questpoint and getgenv().questpoint[c.QuestName]
-			if qp then
-				c.Pos = qp.Position
-			end
-		end
 		getgenv().NameMobQuest, getgenv().NameQuest, getgenv().IDQuest = c.Mob, c.QuestName, c.Id
 	end
 	return c
@@ -5052,15 +5025,7 @@ TakeQuestLevel = function()
 	local H = V.Pos
 	if typeof(H) == "CFrame" then H = H.Position end
 	if not H then
-		-- NPC chua co toa do: lam moi danh sach NPC roi thu lai
-		pcall(CFrameQuest)
-		local qp = getgenv().questpoint and getgenv().questpoint[V.QuestName]
-		if qp then
-			H = qp.Position
-		end
-	end
-	if not H then
-		-- Van khong thay NPC: bay toi bai quai de map tai NPC roi thu nhan quest
+		-- NPC chua load: bay toi bai quai de map tai NPC roi thu lai
 		local sp = DetectPartSpawnMob(V.Mob)
 		if sp then
 			toTarget(sp.CFrame * CFrame.new(0, 40, 0))
@@ -5516,7 +5481,343 @@ function SpecialHop(C)
 		end
 	end
 end
+
+--// =========================================================
+--// FILE 2 FARM ENGINE MERGED INTO FILE 1
+--// Level Farm: quest -> target -> stable air position -> hitbox/bring -> attack
+--// =========================================================
+_G.Farm2_SpinAngle = _G.Farm2_SpinAngle or 0
+_G.Farm2_SpinRadius = 6.5
+_G.Farm2_SpinSpeed = 50
+_G.Farm2_SpinHeightMelee = 14
+_G.Farm2_SpinHeightFruit = 12
+
+local function Farm2Teleport(cf)
+	if not cf or not toTarget then return end
+	pcall(function()
+		toTarget(cf)
+	end)
+end
+
+local function Farm2GetOffset()
+	local offset = _G.Farm2_SpinHeightMelee
+	local char = t.Character
+	local tool = char and char:FindFirstChildOfClass("Tool")
+	if tool and tool.ToolTip == "Blox Fruit" then
+		offset = _G.Farm2_SpinHeightFruit
+	end
+	return offset
+end
+
+local function Farm2GetSpinCFrame(targetPart, offset)
+	if not targetPart then return nil end
+	_G.Farm2_SpinAngle = (_G.Farm2_SpinAngle + _G.Farm2_SpinSpeed) % 360
+	local rad = math.rad(_G.Farm2_SpinAngle)
+	local pos = targetPart.Position
+		+ Vector3.new(
+			math.cos(rad) * _G.Farm2_SpinRadius,
+			offset or _G.Farm2_SpinHeightMelee,
+			math.sin(rad) * _G.Farm2_SpinRadius
+		)
+	return CFrame.new(pos, targetPart.Position)
+end
+
+local Farm2VirtualUser = game:GetService("VirtualUser")
+local Farm2Attack = {}
+
+Farm2Attack.GetWeapon = function()
+	local selected = Settings["Select Weapon"]
+	if selected and (t.Backpack:FindFirstChild(selected) or (t.Character and t.Character:FindFirstChild(selected))) then
+		return selected
+	end
+
+	local char = t.Character
+	if char then
+		local equipped = char:FindFirstChildOfClass("Tool")
+		if equipped then
+			return equipped.Name
+		end
+	end
+
+	local order = {"Melee", "Sword", "Blox Fruit", "Gun"}
+	for _, tip in ipairs(order) do
+		local weapon = NameWeapon(tip)
+		if weapon then return weapon end
+	end
+	return nil
+end
+
+Farm2Attack.Click = function()
+	pcall(function()
+		Farm2VirtualUser:CaptureController()
+		Farm2VirtualUser:Button1Down(Vector2.new(1280, 672))
+		Farm2VirtualUser:Button1Up(Vector2.new(1280, 672))
+	end)
+end
+
+-- Giữ mob cùng loại tại vị trí mục tiêu, dùng hitbox/bring giống file 2.
+local function Farm2BringEnemy(mon)
+	if not mon or not mon:FindFirstChild("HumanoidRootPart") then return end
+	local targetPos = mon.HumanoidRootPart.Position
+
+	pcall(function()
+		if sethiddenproperty then
+			sethiddenproperty(t, "SimulationRadius", math.huge)
+		end
+
+		for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+			if enemy ~= mon and enemy.Name == mon.Name then
+				local hum = enemy:FindFirstChildOfClass("Humanoid")
+				local root = enemy:FindFirstChild("HumanoidRootPart")
+				if hum and root and hum.Health > 0 then
+					local distance = (root.Position - targetPos).Magnitude
+					if distance <= 3000 then
+						root.CanCollide = false
+						hum.WalkSpeed = 0
+						hum.JumpPower = 0
+
+						local bv = root:FindFirstChild("Farm2BodyVelocity")
+						if not bv then
+							bv = Instance.new("BodyVelocity")
+							bv.Name = "Farm2BodyVelocity"
+							bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+							bv.Velocity = Vector3.zero
+							bv.Parent = root
+						end
+
+						if distance > 10 then
+							root.CFrame = CFrame.new(targetPos)
+						end
+					end
+				end
+			end
+		end
+
+		mon.HumanoidRootPart.CanCollide = false
+		if mon:FindFirstChildOfClass("Humanoid") then
+			mon:FindFirstChildOfClass("Humanoid").WalkSpeed = 0
+			mon:FindFirstChildOfClass("Humanoid").JumpPower = 0
+		end
+	end)
+end
+
+Farm2Attack.Kill = function(model)
+	if not model or not model.Parent then return end
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	local root = model:FindFirstChild("HumanoidRootPart")
+	if not hum or not root or hum.Health <= 0 then return end
+
+	local locked = model:GetAttribute("Farm2Locked")
+	if not locked then
+		model:SetAttribute("Farm2Locked", root.CFrame)
+		locked = root.CFrame
+	end
+
+	local targetName = model.Name
+	while model.Parent and hum.Parent and hum.Health > 0 and Settings["Start Farm"]
+		and Settings["Select Method Farm"] == "Level Farm" do
+
+		local current
+		local best = math.huge
+		local lockPos = locked.Position
+
+		for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+			local eh = enemy:FindFirstChildOfClass("Humanoid")
+			local er = enemy:FindFirstChild("HumanoidRootPart")
+			if enemy.Name == targetName and eh and er and eh.Health > 0 then
+				local d = (er.Position - lockPos).Magnitude
+				if d <= 450 and d < best then
+					best = d
+					current = enemy
+				end
+			end
+		end
+
+		if not current then break end
+
+		Farm2BringEnemy(current)
+
+		local weapon = Farm2Attack.GetWeapon()
+		if weapon then
+			pcall(function() equiptool(weapon) end)
+		end
+
+		local farmCF = Farm2GetSpinCFrame(current.HumanoidRootPart, Farm2GetOffset())
+		if farmCF then
+			Farm2Teleport(farmCF)
+		end
+
+		Farm2Attack.Click()
+		task.wait(0.01)
+	end
+end
+
+local Farm2AlreadySubmerged = false
+local Farm2Teleporting = false
+
+local function Farm2IsInSubmergedIsland()
+	local char = t.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then return false end
+	local islandXZ = Vector3.new(11520.8017578125, 0, 9829.513671875)
+	local playerXZ = Vector3.new(root.Position.X, 0, root.Position.Z)
+	return (playerXZ - islandXZ).Magnitude < 2000
+end
+
+local function Farm2QuestData()
+	-- Reuse file 1's quest resolver, so the merged farm does not depend on file 2's UI.
+	local level = t.Data.Level.Value
+	pcall(function() CFrameQuest() end)
+	pcall(function() B(level) end)
+
+	local mob = getgenv().NameMobQuest
+	local questName = getgenv().NameQuest
+	local questId = getgenv().IDQuest
+	local questPos = getgenv().questpoint and getgenv().questpoint[questName]
+
+	return {
+		[1] = mob,
+		[2] = questId,
+		[3] = questName,
+		[6] = questPos
+	}
+end
+
+local function Farm2RunLevel()
+	if not Settings["Start Farm"] or Settings["Select Method Farm"] ~= "Level Farm" then
+		Farm2Teleporting = false
+		Farm2AlreadySubmerged = false
+		return
+	end
+
+	local char = t.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local level = t.Data.Level.Value
+	local inSub = Farm2IsInSubmergedIsland()
+
+	-- Giữ logic chuyển Submerged Island của file 2.
+	if level >= 2600 and not inSub and not Farm2Teleporting and not Farm2AlreadySubmerged then
+		Farm2Teleporting = true
+		local npcPos = CFrame.new(-16269.7041, 25.2288494, 1373.65955)
+
+		for _ = 1, 20 do
+			if not Settings["Start Farm"] or Settings["Select Method Farm"] ~= "Level Farm" then
+				Farm2Teleporting = false
+				return
+			end
+			Farm2Teleport(npcPos)
+			if (root.Position - npcPos.Position).Magnitude <= 8 then break end
+			task.wait(0.05)
+		end
+
+		task.wait(1)
+		pcall(function()
+			local remote = game:GetService("ReplicatedStorage").Modules.Net:FindFirstChild("RF/SubmarineWorkerSpeak")
+			if remote then
+				remote:InvokeServer("TravelToSubmergedIsland")
+			end
+		end)
+
+		local timeout = tick()
+		repeat
+			task.wait(0.5)
+			inSub = Farm2IsInSubmergedIsland()
+		until inSub or (root.Position - npcPos.Position).Magnitude > 50
+			or tick() - timeout > 15
+			or not Settings["Start Farm"]
+
+		task.wait(2)
+		Farm2AlreadySubmerged = true
+		Farm2Teleporting = false
+		return
+	end
+
+	if inSub or level < 2600 then
+		Farm2AlreadySubmerged = true
+		Farm2Teleporting = false
+
+		local quest = Farm2QuestData()
+		if not quest or not quest[1] then return end
+
+		local enemyName = quest[1]
+		local questUI = t.PlayerGui.Main:FindFirstChild("Quest")
+		local hasQuest = questUI and questUI.Visible
+
+		-- Nhận quest trước khi đi đánh.
+		if not hasQuest then
+			local questPos = quest[6]
+			if questPos then
+				if typeof(questPos) == "CFrame" then
+					Farm2Teleport(questPos)
+				else
+					Farm2Teleport(CFrame.new(questPos))
+				end
+				task.wait(0.6)
+			else
+				-- Fallback dùng hệ thống quest của file 1.
+				pcall(TakeQuestLevel)
+			end
+
+			pcall(function()
+				CommF:InvokeServer("StartQuest", tostring(quest[3]), quest[2])
+			end)
+			task.wait(0.6)
+		end
+
+		local target
+		local best = math.huge
+		for _, enemy in ipairs(workspace.Enemies:GetChildren()) do
+			local hum = enemy:FindFirstChildOfClass("Humanoid")
+			local eroot = enemy:FindFirstChild("HumanoidRootPart")
+			if enemy.Name == enemyName and hum and eroot and hum.Health > 0 then
+				local d = (eroot.Position - root.Position).Magnitude
+				if d < best then
+					best = d
+					target = enemy
+				end
+			end
+		end
+
+		if target then
+			Farm2Attack.Kill(target)
+		else
+			local spawnCF
+			pcall(function()
+				local origin = workspace:FindFirstChild("_WorldOrigin")
+				local spawns = origin and origin:FindFirstChild("EnemySpawns")
+				if spawns then
+					for _, sp in ipairs(spawns:GetChildren()) do
+						if string.find(sp.Name, enemyName, 1, true) then
+							spawnCF = sp.CFrame
+							break
+						end
+					end
+				end
+			end)
+
+			if not spawnCF then
+				local sp = DetectPartSpawnMob(enemyName)
+				if sp then spawnCF = sp.CFrame end
+			end
+
+			if spawnCF then
+				Farm2Teleport(spawnCF * CFrame.new(0, 25, 0))
+			elseif quest[6] then
+				local qcf = typeof(quest[6]) == "CFrame" and quest[6] or CFrame.new(quest[6])
+				Farm2Teleport(qcf)
+			end
+			task.wait(0.3)
+		end
+	end
+end
+
 function FarmMethod()
+	if Settings["Select Method Farm"] == "Level Farm" then
+		Farm2RunLevel()
+		return
+	end
 	local f, V, H = Settings["Select Method Farm"]
 	local C, J = 9999, 2
 	if f == "Farm Katakuri" then
@@ -19736,4 +20037,3 @@ if not getgenv().BananaCatMainLoop then
 	end)
 end
 getgenv().__BF_LOADED = true
-
