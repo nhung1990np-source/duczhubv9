@@ -4955,57 +4955,84 @@ local function _npcLivePos(npcName)
 	end
 	return nil
 end
-local function B(C)
-	local c = {}
+local function _npcPosForQuest(qn, lvl)
+	local best = nil
 	pcall(function()
-		local J = Z.Data and Z.Data.QuestData
-		local F, q = J and (next(J.Task)), 0
-		for D, r in pairs(Z.Data.NPCList or {}) do
-			local qn = r.InternalQuestName
-			local qt = qn and H[qn]
-			if qt and not table.find(V, qn) and type(r.Levels) == "table" then
-				for id, n in pairs(r.Levels) do
-					local d = qt[id]
-					if d and type(d.Task) == "table" then
-						local u, W = next(d.Task)
-						if W and W > 1 and n <= C and n >= q then
-							local pos = r.Position
-							if typeof(pos) == "CFrame" then pos = pos.Position end
-							pos = _npcLivePos(r.NPCName) or (typeof(D) == "Instance" and D:IsA("BasePart") and D.Position) or pos
-							c = { Level = n, Name = r.NPCName, QuestName = qn, Pos = pos, Id = id, Mob = u }
-							if F == u and id > 1 then
-								local prev = qt[id - 1]
-								if prev and prev.Task then
-									for mn, cnt in pairs(prev.Task) do
-										if mn ~= F and cnt > 1 then c.Mob = mn; c.Id = id - 1; break end
-									end
-								end
-							end
-							q = n
-						end
+		for inst, r in pairs((Z.Data and Z.Data.NPCList) or {}) do
+			local match = (r.InternalQuestName == qn)
+			if not match and type(r.Levels) == "table" then
+				for _, n in pairs(r.Levels) do
+					if n == lvl then
+						match = true
+						break
 					end
+				end
+			end
+			if match then
+				local p = _npcLivePos(r.NPCName)
+					or (typeof(inst) == "Instance" and inst:IsA("BasePart") and inst.Position)
+				local rp = r.Position
+				if typeof(rp) == "CFrame" then
+					rp = rp.Position
+				end
+				best = p or rp or best
+				if best then
+					return
 				end
 			end
 		end
 	end)
-	-- Du phong: GuideModule chua cap nhat -> doc thang bang Quests
-	if not c.QuestName then
-		local best = -1
-		for qn, list in pairs(H) do
-			if not table.find(V, qn) then
-				for id, d in pairs(list) do
-					if type(d) == "table" and d.LevelReq and d.LevelReq <= C and d.LevelReq > best and type(d.Task) == "table" then
-						local u, W = next(d.Task)
-						if W and W > 1 then
-							best = d.LevelReq
-							c = { Level = d.LevelReq, QuestName = qn, Id = id, Mob = u }
-						end
+	return best
+end
+local function B(C)
+	local c = {}
+	local best, curMob = -1, nil
+	pcall(function()
+		local J = Z.Data and Z.Data.QuestData
+		curMob = J and J.Task and (next(J.Task)) or nil
+	end)
+	for qn, list in pairs(H) do
+		if not table.find(V, qn) then
+			for id, d in pairs(list) do
+				if
+					type(d) == "table"
+					and d.LevelReq
+					and d.LevelReq <= C
+					and d.LevelReq > best
+					and type(d.Task) == "table"
+				then
+					local u, W = next(d.Task)
+					if W and W > 1 then
+						best = d.LevelReq
+						c = { Level = d.LevelReq, QuestName = qn, Id = id, Mob = u, Name = d.Name }
 					end
 				end
 			end
 		end
 	end
 	if c.QuestName then
+		if curMob and curMob == c.Mob and c.Id and c.Id > 1 then
+			local prev = H[c.QuestName] and H[c.QuestName][c.Id - 1]
+			if prev and type(prev.Task) == "table" then
+				for mn, cnt in pairs(prev.Task) do
+					if mn ~= curMob and cnt > 1 then
+						c.Mob = mn
+						c.Id = c.Id - 1
+						break
+					end
+				end
+			end
+		end
+		c.Pos = _npcPosForQuest(c.QuestName, c.Level)
+		if not c.Pos then
+			if not next(getgenv().questpoint or {}) then
+				pcall(CFrameQuest)
+			end
+			local qp = getgenv().questpoint and getgenv().questpoint[c.QuestName]
+			if qp then
+				c.Pos = qp.Position
+			end
+		end
 		getgenv().NameMobQuest, getgenv().NameQuest, getgenv().IDQuest = c.Mob, c.QuestName, c.Id
 	end
 	return c
@@ -5025,7 +5052,15 @@ TakeQuestLevel = function()
 	local H = V.Pos
 	if typeof(H) == "CFrame" then H = H.Position end
 	if not H then
-		-- NPC chua load: bay toi bai quai de map tai NPC roi thu lai
+		-- NPC chua co toa do: lam moi danh sach NPC roi thu lai
+		pcall(CFrameQuest)
+		local qp = getgenv().questpoint and getgenv().questpoint[V.QuestName]
+		if qp then
+			H = qp.Position
+		end
+	end
+	if not H then
+		-- Van khong thay NPC: bay toi bai quai de map tai NPC roi thu nhan quest
 		local sp = DetectPartSpawnMob(V.Mob)
 		if sp then
 			toTarget(sp.CFrame * CFrame.new(0, 40, 0))
@@ -19701,3 +19736,4 @@ if not getgenv().BananaCatMainLoop then
 	end)
 end
 getgenv().__BF_LOADED = true
+
