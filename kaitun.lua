@@ -1,3 +1,4 @@
+-- VERSION: 3nn-main UPD30 Sea1 Rework farm level fix
 if getgenv().__BF_LOADED then
 	return getgenv().__BF_RESULT
 end
@@ -4933,61 +4934,117 @@ function CFrameQuest()
 	end
 	getgenv().questpoint.SkyExp1Quest = CFrame.new(-7857.28516, 5544.34033, -382.321503)
 end
+-- [UPD 30 - 5/9/2026 Sea 1 Rework] Chon quest theo cap acc, lay toa do NPC/quai truc tiep tu game
+local function _cleanQ(x)
+	return tostring(x or ""):lower():gsub("%s*%[?%(?lv%.?%s*%d+%]?%)?", ""):gsub("[%s%p]", "")
+end
+local function _npcLivePos(npcName)
+	if not npcName then return nil end
+	local key = _cleanQ(npcName)
+	for _, folder in ipairs({ workspace:FindFirstChild("NPCs"), game.ReplicatedStorage:FindFirstChild("NPCs") }) do
+		if folder then
+			for _, m in ipairs(folder:GetChildren()) do
+				if _cleanQ(m.Name) == key then
+					local p = m:FindFirstChild("HumanoidRootPart") or m.PrimaryPart or m:FindFirstChildWhichIsA("BasePart")
+					if p then return p.Position end
+					local ok, piv = pcall(function() return m:GetPivot() end)
+					if ok and piv then return piv.Position end
+				end
+			end
+		end
+	end
+	return nil
+end
 local function B(C)
-	local J = Z.Data.QuestData
-	local F, q, c = J and (next(J.Task)), 0, {}
-	for D, r in pairs(Z.Data.NPCList) do
-		if not table.find(V, r.InternalQuestName) then
-			for V, n in pairs(r.Levels) do
-				D = H[r.InternalQuestName][V]
-				if D then
-					local u, W = next(D.Task)
-					if W and W > 1 and n <= C and n >= q then
-						c = {
-							Level = n,
-							Name = r.NPCName,
-							QuestName = r.InternalQuestName,
-							Pos = r.Position,
-							Id = V,
-							Mob = u,
-						}
-						if F == u and V > 1 then
-							J = H[r.InternalQuestName][V - 1]
-							if J and J.Task then
-								for H, C in pairs(J.Task) do
-									if H ~= F and C > 1 then
-										c.Mob = H
-										c.Id = V - 1
-										break
+	local c = {}
+	pcall(function()
+		local J = Z.Data and Z.Data.QuestData
+		local F, q = J and (next(J.Task)), 0
+		for D, r in pairs(Z.Data.NPCList or {}) do
+			local qn = r.InternalQuestName
+			local qt = qn and H[qn]
+			if qt and not table.find(V, qn) and type(r.Levels) == "table" then
+				for id, n in pairs(r.Levels) do
+					local d = qt[id]
+					if d and type(d.Task) == "table" then
+						local u, W = next(d.Task)
+						if W and W > 1 and n <= C and n >= q then
+							local pos = r.Position
+							if typeof(pos) == "CFrame" then pos = pos.Position end
+							pos = _npcLivePos(r.NPCName) or (typeof(D) == "Instance" and D:IsA("BasePart") and D.Position) or pos
+							c = { Level = n, Name = r.NPCName, QuestName = qn, Pos = pos, Id = id, Mob = u }
+							if F == u and id > 1 then
+								local prev = qt[id - 1]
+								if prev and prev.Task then
+									for mn, cnt in pairs(prev.Task) do
+										if mn ~= F and cnt > 1 then c.Mob = mn; c.Id = id - 1; break end
 									end
 								end
 							end
+							q = n
 						end
-						q = n
+					end
+				end
+			end
+		end
+	end)
+	-- Du phong: GuideModule chua cap nhat -> doc thang bang Quests
+	if not c.QuestName then
+		local best = -1
+		for qn, list in pairs(H) do
+			if not table.find(V, qn) then
+				for id, d in pairs(list) do
+					if type(d) == "table" and d.LevelReq and d.LevelReq <= C and d.LevelReq > best and type(d.Task) == "table" then
+						local u, W = next(d.Task)
+						if W and W > 1 then
+							best = d.LevelReq
+							c = { Level = d.LevelReq, QuestName = qn, Id = id, Mob = u }
+						end
 					end
 				end
 			end
 		end
 	end
+	if c.QuestName then
+		getgenv().NameMobQuest, getgenv().NameQuest, getgenv().IDQuest = c.Mob, c.QuestName, c.Id
+	end
 	return c
 end
-
+local _questTry = 0
 TakeQuestLevel = function()
 	local V = B(t.Data.Level.Value)
-	if not V or not V.Pos then
+	if not V or not V.QuestName then
 		return
 	end
-	local H, B, C =
-		typeof(V.Pos) == "CFrame" and V.Pos.Position or V.Pos,
+	local B, C =
 		t.Character and (t.Character:FindFirstChild("HumanoidRootPart")),
 		t.Character and (t.Character:FindFirstChild("Humanoid"))
 	if not B or not C then
 		return
 	end
-	if (H - B.Position).Magnitude <= 8 and C.Health > 0 then
-		wait(2)
-		CommF:InvokeServer("StartQuest", tostring(V.QuestName), V.Id)
+	local H = V.Pos
+	if typeof(H) == "CFrame" then H = H.Position end
+	if not H then
+		-- NPC chua load: bay toi bai quai de map tai NPC roi thu lai
+		local sp = DetectPartSpawnMob(V.Mob)
+		if sp then
+			toTarget(sp.CFrame * CFrame.new(0, 40, 0))
+			task.wait(1.5)
+		end
+		pcall(function() CommF:InvokeServer("StartQuest", tostring(V.QuestName), V.Id) end)
+		return
+	end
+	if (H - B.Position).Magnitude <= 12 and C.Health > 0 then
+		task.wait(0.8)
+		pcall(function() CommF:InvokeServer("StartQuest", tostring(V.QuestName), V.Id) end)
+		_questTry = _questTry + 1
+		if _questTry >= 3 then
+			_questTry = 0
+			local sp = DetectPartSpawnMob(V.Mob)
+			if sp then toTarget(sp.CFrame * CFrame.new(0, 40, 0)) end
+		end
 	else
+		_questTry = 0
 		toTarget(CFrame.new(H) * CFrame.new(0, 4, 2), true)
 	end
 end
@@ -19644,3 +19701,4 @@ if not getgenv().BananaCatMainLoop then
 	end)
 end
 getgenv().__BF_LOADED = true
+
